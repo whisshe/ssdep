@@ -1,0 +1,2 @@
+SS=`which ssserver`
+$SS -c /tmp/ss.json -d restart

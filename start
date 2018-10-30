@@ -1,0 +1,2 @@
+SS=`which ssserver`
+$SS -c ./ss.json -d start

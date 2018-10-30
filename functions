@@ -1,0 +1,162 @@
+#!/bin/bash
+# whisshe 
+# 2018-6-27
+# 一键部署shadowsocks functions
+color(){
+    color=$1
+    text=$2
+    case $color in 
+        red)
+	    echo -e "\033[31m $text\033[0m"
+        ;;
+        green)
+	    echo -e "\033[32m $text\033[0m"
+        ;;
+        yellow)
+	    echo -e "\033[33m $text\033[0m"
+        ;;
+        blue)
+            echo -e "\033[34m $text\033[0m"
+        ;;
+        purple)
+            echo -e "\033[35m $text\033[0m"
+        ;;
+        cyan)
+            echo -e "\033[36m $text\033[0m"
+        ;;
+        white)
+            echo -e "\033[37m $text\033[0m"
+        ;;
+        *)
+            echo ' input error'
+        ;;
+    esac
+}
+
+checkSys(){
+    if [[ -f /etc/redhat-release ]];then
+        sys=redhat
+        PM=yum
+    elif [[ -f /etc/debian_version ]];then
+        sys=debian
+        PM=apt
+    fi
+    color blue "your system: $sys"
+}
+
+installDepends(){
+    checkSys
+    if [[ $PM == yum ]];then
+        yum install -y zlib zlib-devel openssl-devel gcc openssl > /dev/null
+    elif [[ $PM == apt ]];then
+        apt-get install -y zlib1g zlib1g-dev gcc libssl-dev openssl > /dev/null
+    else
+        color red "not support"
+        sleep 1
+        exit 1
+    fi 
+}
+
+userVerify(){
+    if [[ `id -u` -ne 0 ]];then
+        color red "please use root to run this script"
+        exit 1
+    fi
+}
+
+checkPV(){
+    pv=`( python -V ) 2>tmp;cat tmp|awk '{print $2}';rm tmp -f`
+    pipV=`pip -V|awk '{print $2}'`
+}
+
+versionVerify(){
+    version=$1
+    verify=$2
+    soft=$3
+    if [[ $verify != $version  ]];then
+        color green "$soft version is $version now"
+    else
+        color red "$soft $version is lower than $verify"
+        color red "upgrade $soft "
+        softInstall
+    fi
+#    rm tmp -f
+}
+
+softInstall(){
+    if [[ $soft == python ]];then
+        pythonInstall
+    elif [[ $soft == pip ]];then
+        pipInstall
+    fi
+}
+
+pythonInstall(){
+    installDepends
+    color green 'download Python-2.7.3'
+    cd $pwd/pkg
+    tar -jxf Python-2.7.3.tar.bz2
+    cd Python-2.7.3
+    color green "configure python"
+    ./configure;make all;make install > /dev/null
+    pv=`( python -V ) 2>tmp;cat tmp|awk '{print $2}';rm tmp -f`
+    rm -fr $pwd/pkg/Python-2.7.3
+    color green "python version is $pv now"
+}
+
+pipInstall(){
+   installDepends
+    color green 'setuptools install'
+    cd $pwd/pkg
+    tar zxvf setuptools-0.6c11.tar.gz
+    cd setuptools-0.6c11
+    sed -i s'#http://pypi#https://pypi#' ./setuptools/command/easy_install.py
+    python setup.py install
+    rm -fr $pwd/pkg/setuptools-0.6c11
+    color green 'pip install'
+    easy_install pip > tmp;rm tmp -f
+    pipV=`pip -V|awk '{print $2}'`
+    color green "pip version is $pipV now"
+}
+
+ssInstall(){
+    pip install shadowsocks > /dev/null
+}
+
+ss_config(){
+    ip=`( curl ident.me ) 2> /dev/null`
+    port=$RANDOM
+    passwd=`date +%s%N |md5sum|head -c 10`
+    while [[ `ss -tpln|grep -w $port|wc -l` -gt 0 ]];do
+        port=$RANDOM
+    done
+    \cp $pwd/ss.json /tmp/ 
+    sed -i "s/serverIP/$ip/" /tmp/ss.json
+    sed -i "s/portN/$port/" /tmp/ss.json
+    sed -i "s/portPass/$passwd/" /tmp/ss.json
+    color blue "your ss config make success !!"
+    color blue "config file is \c"; color yellow "/tmp/ss.json"
+    color cyan "==========================="
+    cat /tmp/ss.json
+    color cyan "==========================="
+}
+
+addCRON(){
+    \cp $pwd/sss-status.sh /tmp
+    Port=cat /tmp/ss.json |grep -A 1 port_pass|awk -F"[\"\"]" 'NR==2{print $2}'
+    sed -i 's/ssPort/Port/' /tmp/sss-status.sh
+}
+mssdep(){
+    checkPV
+    sed -i "s/$pipV/10/" $pwd/ssdep.sh
+}
+
+scripts(){
+    grep -q "/usr/bin/ssserver -c" /var/spool/cron/root|| echo "5 4 * * * /usr/bin/ssserver -c /tmp/ss.json -d restart" >> /var/spool/cron/root
+    grep -q "sss-status" /var/spool/cron/root|| echo "*/10 * * * * /tmp/sss-status.sh" >> /var/spool/cron/root
+    cd $pwd
+    color blue "Congratulations, your shadowsocket server is installed successfully."
+    color blue "use\c"
+    color yellow "./start\c"
+    color blue "to start your shadowsocket server,for more details,see readme" 
+}
