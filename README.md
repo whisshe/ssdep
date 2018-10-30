@@ -12,3 +12,5 @@
 ./ssdep.sh
 ./start
 ```
+# 配置文件
+配置文件默认为`/tmp/ss.json`
