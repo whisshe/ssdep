@@ -8,7 +8,7 @@
 `restart`为重启`shadowsocks`脚本
 
 `sss-status.sh`为监控`shadowsocks`运行状态的脚本，会加入crontab
-运行脚本方法如下：
+
 # ssdep使用方法
 ```
 ./ssdep.sh
