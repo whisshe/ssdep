@@ -1,12 +1,11 @@
 {
-    "server":"172.96.18.26",
+    "server":"serverIP",
     "local_address":"127.0.0.1",
     "local_port":1081,
     "port_password":{
-        "626":"7788520a"
+        "portN":"portPass"
         },
 "timeout":120,
 "method":"rc4-md5",
 "fast_open":false
 }
-
